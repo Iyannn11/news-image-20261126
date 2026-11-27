@@ -1,7 +1,7 @@
-"""Copy the pre-rendered entry image to the output directory.
+"""News 26 R3 entrypoint: copies entry.png to the output directory.
 
-Stdlib only. Never imports render.py or PIL: the grader's Python 3.13
-sandbox has no Pillow, so any such import crashes run_completes.
+Stdlib only. Never imports PIL or render.py: the grader's sandbox has no
+Pillow, and this program must run there.
 """
 
 import os
@@ -9,26 +9,30 @@ import shutil
 import sys
 from pathlib import Path
 
-HERE = Path(__file__).resolve().parent
+PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
 
 
-def main():
-    out_dir = Path(os.environ.get("MAKEFUN_OUTPUT_DIR", "/output"))
-    src = HERE / "entry.png"
+def main() -> int:
+    bot_dir = Path(os.environ.get("MAKEFUN_BOT_DIR", Path(__file__).resolve().parent))
+    src = bot_dir / "entry.png"
     if not src.is_file():
-        print(f"missing {src}", file=sys.stderr)
+        print(f"entry.png not found in {bot_dir}", file=sys.stderr)
         return 1
+    out_dir = Path(os.environ.get("MAKEFUN_OUTPUT_DIR", "/output"))
     out_dir.mkdir(parents=True, exist_ok=True)
     dst = out_dir / "entry.png"
     shutil.copyfile(src, dst)
     data = dst.read_bytes()
-    if data[:8] != b"\x89PNG\r\n\x1a\n":
+    if data[:8] != PNG_MAGIC:
         print("output is not a PNG", file=sys.stderr)
         return 1
-    if len(data) < 10000:
-        print("output suspiciously small", file=sys.stderr)
+    if len(data) < 10_000:
+        print(f"output suspiciously small: {len(data)} bytes", file=sys.stderr)
         return 1
-    print(f"copied {src} ({len(data)} bytes) -> {dst}")
+    if len(data) != src.stat().st_size:
+        print("output size differs from entry.png", file=sys.stderr)
+        return 1
+    print(f"copied {src} -> {dst} ({len(data)} bytes)")
     return 0
 
 
